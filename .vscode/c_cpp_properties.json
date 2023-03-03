@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/src/**",
+                "${@OPENCV_INCLUDE}/**",
+                "${@CUDA_INCLUDE}/**",
+                "${@TENSORRT_INCLUDE}/**",
+                "${@CUDNN_INCLUDE}/**"
+            ],
+            "defines": ["__CUDACC__", "HAS_PYTHON"],
+            "compilerPath": "/usr/bin/gcc", 
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++11",
+            "intelliSenseMode": "linux-gcc-x64",
+            "configurationProvider": "ms-vscode.makefile-tools",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/src/**",
+                    "${@OPENCV_INCLUDE}/**",
+                    "${@CUDA_INCLUDE}/**",
+                    "${@TENSORRT_INCLUDE}/**",
+                    "${@CUDNN_INCLUDE}/**"
+                ],
+                "limitSymbolsToIncludedHeaders": false,
+                "databaseFilename": ""
+            }
+        }
+    ],
+    "version": 4
+}
