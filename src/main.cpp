@@ -1,6 +1,8 @@
 
 #include "yolo.hpp"
+#include "infer.hpp"
 #include <opencv2/opencv.hpp>
+#include "cpm.hpp"
 
 using namespace std;
 
@@ -24,8 +26,42 @@ yolo::Image cvimg(const cv::Mat& image){
     return yolo::Image(image.data, image.cols, image.rows);
 }
 
-int main(){
+void perf(){
     
+    int batch = 16;
+    std::vector<cv::Mat> images{
+        cv::imread("inference/car.jpg"),
+        cv::imread("inference/gril.jpg"),
+        cv::imread("inference/group.jpg")
+    };
+
+    for(int i = images.size(); i < batch; ++i)
+        images.push_back(images[i % 3]);
+
+    cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+    cpmi.start([]{
+        return yolo::load("yolov5s.engine", yolo::Type::V5);
+    }, batch);
+
+    std::vector<yolo::Image> yoloimages(images.size());
+    std::transform(images.begin(), images.end(), yoloimages.begin(), cvimg);
+
+    trt::Timer timer;
+    for(int i = 0; i < 5; ++i){
+        timer.start();
+        cpmi.commits(yoloimages).back().get();
+        timer.stop("BATCH16");
+    }
+
+    for(int i = 0; i < 5; ++i){
+        timer.start();
+        cpmi.commit(yoloimages[0]).get();
+        timer.stop("BATCH1");
+    }
+}
+
+void inference(){
+
     int batch = 5;
     std::vector<cv::Mat> images{
         cv::imread("inference/car.jpg"),
@@ -36,15 +72,18 @@ int main(){
     for(int i = images.size(); i < batch; ++i)
         images.push_back(images[i % 3]);
 
+    cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+    cpmi.start([]{
+        return yolo::load("yolov5s.engine", yolo::Type::V5);
+    }, batch);
+
     std::vector<yolo::Image> yoloimages(images.size());
     std::transform(images.begin(), images.end(), yoloimages.begin(), cvimg);
 
-    auto model  = yolo::load("yolov5s.engine", yolo::Type::V5);
-    auto result = model->forwards(yoloimages);
-    
+    auto result = cpmi.commits(yoloimages);
     for(int i = 0; i < result.size(); ++i){
         auto& image = images[i];
-        auto& objs  = result[i];
+        auto& objs  = result[i].get();
         printf("result = %d\n", objs.size());
 
         for(auto& obj : objs){
@@ -62,5 +101,11 @@ int main(){
         printf("Save result to infer.jpg, %d objects\n", objs.size());
         cv::imwrite(cv::format("infer_%d.jpg", i), image);
     }
+}
+
+int main(){
+    
+    perf();
+    // inference();
     return 0;
 }

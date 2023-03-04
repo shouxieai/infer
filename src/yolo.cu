@@ -439,7 +439,7 @@ public:
 
         auto input_dims = trt_->static_dims(0);
         input_dims[0]   = batch_size;
-        trt_->set_run_dims(0, input_dims);
+        if(!trt_->set_run_dims(0, input_dims)) return {};
 
         adjust_memory();
 

@@ -1,7 +1,7 @@
-sxai/protobuf3.11.4
 sxai/opencv4.2
 cuda/x86trt
 # @model/yolov7.onnx -save workspace
-@model/yolov5s_6.0.onnx -save workspace
->Now you can execute "<yellow>bash workspace/build.sh</yellow>" to build trtmodel, have a nice day.🤗
->Now you can execute "<yellow>make run -j</yellow>", have a nice day.🤗
+@model/yolov5s_6.0.onnx -save=workspace
+@cuda/ocvtrtmk -save=.
+>Step1: You can execute "<yellow>bash workspace/build.sh</yellow>" to build trtmodel
+>Step2: You can execute "<yellow>make run -j</yellow>", have a nice day.🤗

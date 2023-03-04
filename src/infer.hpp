@@ -21,6 +21,18 @@ enum class DType : int
     UINT8 = 5
 };
 
+class Timer{
+public:
+    Timer();
+    virtual ~Timer();
+    void start(void* stream=nullptr);
+    float stop(const char* prefix="Timer", bool print=true);
+
+private:
+    void *start_, *stop_;
+    void* stream_;
+};
+
 class MixMemory {
 public:
     MixMemory() = default;
