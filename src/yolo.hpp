@@ -42,7 +42,6 @@ public:
 };
 
 const char* type_name(Type type);
-Infer* loadraw(const std::string& engine_file, Type type, float confidence_threshold=0.25f, float nms_threshold=0.5f);
 std::shared_ptr<Infer> load(const std::string& engine_file, Type type, float confidence_threshold=0.25f, float nms_threshold=0.5f);
 
 std::tuple<uint8_t, uint8_t, uint8_t> hsv2bgr(float h, float s, float v);

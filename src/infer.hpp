@@ -96,7 +96,6 @@ public:
     virtual void print() = 0;
 };
 
-Infer* loadraw(const std::string& file);
 std::shared_ptr<Infer> load(const std::string& file);
 std::string format_shape(const std::vector<int>& shape);
 
