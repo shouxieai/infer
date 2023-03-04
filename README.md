@@ -7,3 +7,34 @@
     - 对于直接推理的任务，通过cpm.hpp可以变为自动多batch的生产者消费者模型
 - infer.hpp 对tensorRT的重新封装。接口简单
 - yolo.hpp 对于yolo任务的封装。基于 infer.hpp
+
+# trt的推理流程
+### step1 编译模型，例如
+`trtexec --onnx=yolov5s.onnx --saveEngine=yolov5s.engine`
+
+### step2 使用infer推理
+```
+model = trt::load("yolov5s.engine");
+... preprocess ...
+
+// Configure the dynamic batch size.
+auto dims = model->static_dims();
+dims[0]   = batch;
+model->set_run_dims(dims);
+model->forward({input_device, output_device}, stream);
+
+... postprocess ...
+```
+# CPM的使用
+```
+cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
+cpmi.start([]{
+    return yolo::load("yolov5s.engine", yolo::Type::V5);
+}, batch);
+
+auto result_futures = cpmi.commits(images);
+for(auto& fut : result_futures){
+    auto objs = fut.get();
+    ... process ...
+}
+```
