@@ -7,6 +7,12 @@
 *.o
 *.obj
 
+*.onnx
+workspace/pro
+*.engine
+.kiwi
+objs
+
 # Precompiled Headers
 *.gch
 *.pch

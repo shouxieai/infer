@@ -378,7 +378,7 @@ public:
     }
 
     virtual int numel(int ibinding) override{
-        auto dim = this->context_->engine_->getBindingDimensions(ibinding);
+        auto dim = this->context_->context_->getBindingDimensions(ibinding);
         return std::accumulate(dim.d, dim.d + dim.nbDims, 1, std::multiplies<int>());
     }
     
