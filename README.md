@@ -1,4 +1,4 @@
-# 全新的tensorrt封装，轻易集成各类任务
+# 全新的tensorrt封装，轻易继承各类任务
 - 轻易实现各类任务的生产者消费者模型，并进行高性能推理
 - 没有复杂的封装
 
@@ -25,7 +25,7 @@ model->forward({input_device, output_device}, stream);
 
 ... postprocess ...
 ```
-# CPM的使用
+# CPM的使用(将推理封装为生产者消费者)
 ```
 cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cpmi.start([]{

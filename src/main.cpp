@@ -39,9 +39,11 @@ void perf(){
         images.push_back(images[i % 3]);
 
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
-    cpmi.start([]{
+    bool ok = cpmi.start([]{
         return yolo::load("yolov5s.engine", yolo::Type::V5);
     }, batch);
+
+    if(!ok) return;
 
     std::vector<yolo::Image> yoloimages(images.size());
     std::transform(images.begin(), images.end(), yoloimages.begin(), cvimg);
@@ -73,9 +75,11 @@ void inference(){
         images.push_back(images[i % 3]);
 
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
-    cpmi.start([]{
+    bool ok = cpmi.start([]{
         return yolo::load("yolov5s.engine", yolo::Type::V5);
     }, batch);
+
+    if(!ok) return;
 
     std::vector<yolo::Image> yoloimages(images.size());
     std::transform(images.begin(), images.end(), yoloimages.begin(), cvimg);

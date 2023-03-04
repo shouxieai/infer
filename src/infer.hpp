@@ -33,11 +33,11 @@ private:
     void* stream_;
 };
 
-class MixMemory {
+class BaseMemory {
 public:
-    MixMemory() = default;
-    MixMemory(void* cpu, size_t cpu_bytes, void* gpu, size_t gpu_bytes);
-    virtual ~MixMemory();
+    BaseMemory() = default;
+    BaseMemory(void* cpu, size_t cpu_bytes, void* gpu, size_t gpu_bytes);
+    virtual ~BaseMemory();
     virtual void* gpu(size_t bytes);
     virtual void* cpu(size_t bytes);
     void release_gpu();
@@ -62,13 +62,13 @@ protected:
 };
 
 template<typename _DT>
-class Memory : public MixMemory{
+class Memory : public BaseMemory{
 public:
     Memory()                               = default;
     Memory(const Memory& other)            = delete;
     Memory& operator=(const Memory& other) = delete;
-    virtual _DT* gpu(size_t size) override{MixMemory::gpu(size * sizeof(_DT));}
-    virtual _DT* cpu(size_t size) override{MixMemory::cpu(size * sizeof(_DT));}
+    virtual _DT* gpu(size_t size) override{BaseMemory::gpu(size * sizeof(_DT));}
+    virtual _DT* cpu(size_t size) override{BaseMemory::cpu(size * sizeof(_DT));}
 
     inline size_t cpu_size() const{return cpu_bytes_ / sizeof(_DT);}
     inline size_t gpu_size() const{return gpu_bytes_ / sizeof(_DT);}

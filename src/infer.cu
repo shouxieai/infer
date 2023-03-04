@@ -119,11 +119,11 @@ float Timer::stop(const char* prefix, bool print){
     return latency;
 }
 
-MixMemory::MixMemory(void* cpu, size_t cpu_bytes, void* gpu, size_t gpu_bytes){
+BaseMemory::BaseMemory(void* cpu, size_t cpu_bytes, void* gpu, size_t gpu_bytes){
     reference(cpu, cpu_bytes, gpu, gpu_bytes);		
 }
 
-void MixMemory::reference(void* cpu, size_t cpu_bytes, void* gpu, size_t gpu_bytes){
+void BaseMemory::reference(void* cpu, size_t cpu_bytes, void* gpu, size_t gpu_bytes){
     release();
     
     if(cpu == nullptr || cpu_bytes == 0){
@@ -147,11 +147,11 @@ void MixMemory::reference(void* cpu, size_t cpu_bytes, void* gpu, size_t gpu_byt
     this->owner_gpu_ = !(gpu && gpu_bytes > 0);
 }
 
-MixMemory::~MixMemory() {
+BaseMemory::~BaseMemory() {
     release();
 }
 
-void* MixMemory::gpu(size_t bytes) {
+void* BaseMemory::gpu(size_t bytes) {
 
     if (gpu_capacity_ < bytes) {
         release_gpu();
@@ -164,7 +164,7 @@ void* MixMemory::gpu(size_t bytes) {
     return gpu_;
 }
 
-void* MixMemory::cpu(size_t bytes) {
+void* BaseMemory::cpu(size_t bytes) {
 
     if (cpu_capacity_ < bytes) {
         release_cpu();
@@ -178,7 +178,7 @@ void* MixMemory::cpu(size_t bytes) {
     return cpu_;
 }
 
-void MixMemory::release_cpu() {
+void BaseMemory::release_cpu() {
     if (cpu_) {
         if(owner_cpu_){
             checkRuntime(cudaFreeHost(cpu_));
@@ -189,7 +189,7 @@ void MixMemory::release_cpu() {
     cpu_bytes_ = 0;
 }
 
-void MixMemory::release_gpu() {
+void BaseMemory::release_gpu() {
     if (gpu_) {
         if(owner_gpu_){
             checkRuntime(cudaFree(gpu_));
@@ -200,7 +200,7 @@ void MixMemory::release_gpu() {
     gpu_bytes_ = 0;
 }
 
-void MixMemory::release() {
+void BaseMemory::release() {
     release_cpu();
     release_gpu();
 }
