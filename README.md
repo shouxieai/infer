@@ -5,6 +5,7 @@
 # 关于Yolo-Demo
 - 目前支持Yolo系列3/4/5/x/7/8
 - 支持了YoloV8-Segment
+![](bus.jpg)
 
 # 说明
 - cpm.hpp 生产者消费者模型

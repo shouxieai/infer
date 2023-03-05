@@ -1,6 +1,7 @@
 sxai/opencv4.2
 cuda/x86trt
 @model/yolov8n.transd.onnx -save=workspace
+@model/yolov8n-seg.b1.transd.onnx -save=workspace
 @cuda/ocvtrtmk -save=.
 templ/cumk
 >Step1: You can execute "<yellow>bash workspace/build.sh</yellow>" to build trtmodel
