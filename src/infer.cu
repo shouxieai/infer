@@ -389,6 +389,10 @@ public:
     virtual DType dtype(int ibinding) override{
         return (DType)this->context_->engine_->getBindingDataType(ibinding);
     }
+
+    virtual bool has_implicit_dim() override{
+        return this->context_->engine_->hasImplicitBatchDimension();
+    }
     
     virtual void print() override{
         INFO("Infer %p", this);

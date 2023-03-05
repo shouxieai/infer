@@ -28,6 +28,7 @@ yolo::Image cvimg(const cv::Mat& image){
 
 void perf(){
     
+    int max_infer_batch = 16;
     int batch = 16;
     std::vector<cv::Mat> images{
         cv::imread("inference/car.jpg"),
@@ -41,7 +42,7 @@ void perf(){
     cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
     bool ok = cpmi.start([]{
         return yolo::load("yolov8n.transd.engine", yolo::Type::V8);
-    }, batch);
+    }, max_infer_batch);
 
     if(!ok) return;
 
@@ -64,47 +65,25 @@ void perf(){
 
 void inference(){
 
-    int batch = 3;
-    std::vector<cv::Mat> images{
-        cv::imread("inference/car.jpg"),
-        cv::imread("inference/gril.jpg"),
-        cv::imread("inference/group.jpg")
-    };
+    cv::Mat image = cv::imread("inference/car.jpg");
+    auto yolo = yolo::load("yolov8n.transd.engine", yolo::Type::V8);
+    if(yolo == nullptr) return;
 
-    for(int i = images.size(); i < batch; ++i)
-        images.push_back(images[i % 3]);
+    auto objs = yolo->forward(cvimg(image));
+    for(auto& obj : objs){
+        uint8_t b, g, r;
+        tie(b, g, r) = yolo::random_color(obj.class_label);
+        cv::rectangle(image, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(b, g, r), 5);
 
-    cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
-    bool ok = cpmi.start([]{
-        return yolo::load("yolov8n.transd.engine", yolo::Type::V8);
-    }, batch);
-
-    if(!ok) return;
-
-    std::vector<yolo::Image> yoloimages(images.size());
-    std::transform(images.begin(), images.end(), yoloimages.begin(), cvimg);
-
-    auto result = cpmi.commits(yoloimages);
-    for(int i = 0; i < result.size(); ++i){
-        auto& image = images[i];
-        auto& objs  = result[i].get();
-        printf("result = %d\n", objs.size());
-
-        for(auto& obj : objs){
-            uint8_t b, g, r;
-            tie(b, g, r) = yolo::random_color(obj.class_label);
-            cv::rectangle(image, cv::Point(obj.left, obj.top), cv::Point(obj.right, obj.bottom), cv::Scalar(b, g, r), 5);
-
-            auto name    = cocolabels[obj.class_label];
-            auto caption = cv::format("%s %.2f", name, obj.confidence);
-            int width    = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
-            cv::rectangle(image, cv::Point(obj.left-3, obj.top-33), cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
-            cv::putText(image, caption, cv::Point(obj.left, obj.top-5), 0, 1, cv::Scalar::all(0), 2, 16);
-        }
-
-        printf("Save result to infer.jpg, %d objects\n", objs.size());
-        cv::imwrite(cv::format("infer_%d.jpg", i), image);
+        auto name    = cocolabels[obj.class_label];
+        auto caption = cv::format("%s %.2f", name, obj.confidence);
+        int width    = cv::getTextSize(caption, 0, 1, 2, nullptr).width + 10;
+        cv::rectangle(image, cv::Point(obj.left-3, obj.top-33), cv::Point(obj.left + width, obj.top), cv::Scalar(b, g, r), -1);
+        cv::putText(image, caption, cv::Point(obj.left, obj.top-5), 0, 1, cv::Scalar::all(0), 2, 16);
     }
+
+    printf("Save result to Result.jpg, %d objects\n", objs.size());
+    cv::imwrite("Result.jpg", image);
 }
 
 int main(){

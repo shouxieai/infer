@@ -490,8 +490,10 @@ public:
         if(batch_size == 0) return {};
 
         auto input_dims = trt_->static_dims(0);
-        input_dims[0]   = batch_size;
-        if(!trt_->set_run_dims(0, input_dims)) return {};
+        if(input_dims[0] != batch_size){
+            input_dims[0] = batch_size;
+            if(!trt_->set_run_dims(0, input_dims)) return {};
+        }
 
         adjust_memory();
 

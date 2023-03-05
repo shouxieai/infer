@@ -93,6 +93,7 @@ public:
     virtual bool set_run_dims(int ibinding, const std::vector<int>& dims) = 0;
     virtual DType dtype(const std::string& name) = 0;
     virtual DType dtype(int ibinding) = 0;
+    virtual bool has_implicit_dim() = 0;
     virtual void print() = 0;
 };
 
