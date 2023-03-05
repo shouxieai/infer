@@ -118,9 +118,6 @@ void single_inference() {
   if (yolo == nullptr)
     return;
 
-  for (int i = 0; i < 10; ++i) {
-    yolo->forward(cvimg(image));
-  }
   auto objs = yolo->forward(cvimg(image));
   int i = 0;
   for (auto &obj : objs) {
