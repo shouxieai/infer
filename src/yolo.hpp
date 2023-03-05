@@ -19,7 +19,7 @@ enum class Type : int {
 
 struct InstanceSegmentMap {
   int width = 0, height = 0;     // width % 8 == 0
-  unsigned char *data = nullptr; // is bitstream @ (width / 8) * height bytes
+  unsigned char *data = nullptr; // is width * height memory
 
   InstanceSegmentMap(int width, int height);
   virtual ~InstanceSegmentMap();
