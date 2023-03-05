@@ -85,7 +85,7 @@ static __device__ void affine_project(float* matrix, float x, float y, float* ox
     *oy = matrix[3] * x + matrix[4] * y + matrix[5];
 }
 
-static __global__ void decode_kernel(float* predict, int num_bboxes, int num_classes, float confidence_threshold, float* invert_affine_matrix, float* parray, int MAX_IMAGE_BOXES){  
+static __global__ void decode_kernel_common(float* predict, int num_bboxes, int num_classes, float confidence_threshold, float* invert_affine_matrix, float* parray, int MAX_IMAGE_BOXES){  
 
     int position = blockDim.x * blockIdx.x + threadIdx.x;
     if (position >= num_bboxes) return;
@@ -106,6 +106,49 @@ static __global__ void decode_kernel(float* predict, int num_bboxes, int num_cla
     }
 
     confidence *= objectness;
+    if(confidence < confidence_threshold)
+        return;
+
+    int index = atomicAdd(parray, 1);
+    if(index >= MAX_IMAGE_BOXES)
+        return;
+
+    float cx         = *pitem++;
+    float cy         = *pitem++;
+    float width      = *pitem++;
+    float height     = *pitem++;
+    float left   = cx - width * 0.5f;
+    float top    = cy - height * 0.5f;
+    float right  = cx + width * 0.5f;
+    float bottom = cy + height * 0.5f;
+    affine_project(invert_affine_matrix, left,  top,    &left,  &top);
+    affine_project(invert_affine_matrix, right, bottom, &right, &bottom);
+
+    float* pout_item = parray + 1 + index * NUM_BOX_ELEMENT;
+    *pout_item++ = left;
+    *pout_item++ = top;
+    *pout_item++ = right;
+    *pout_item++ = bottom;
+    *pout_item++ = confidence;
+    *pout_item++ = label;
+    *pout_item++ = 1; // 1 = keep, 0 = ignore
+}
+
+static __global__ void decode_kernel_v8(float* predict, int num_bboxes, int num_classes, float confidence_threshold, float* invert_affine_matrix, float* parray, int MAX_IMAGE_BOXES){  
+
+    int position = blockDim.x * blockIdx.x + threadIdx.x;
+    if (position >= num_bboxes) return;
+
+    float* pitem            = predict + (4 + num_classes) * position;
+    float* class_confidence = pitem + 4;
+    float confidence        = *class_confidence++;
+    int label               = 0;
+    for(int i = 1; i < num_classes; ++i, ++class_confidence){
+        if(*class_confidence > confidence){
+            confidence = *class_confidence;
+            label      = i;
+        }
+    }
     if(confidence < confidence_threshold)
         return;
 
@@ -192,13 +235,16 @@ static dim3 block_dims(int numJobs) {
     return numJobs < GPU_BLOCK_THREADS ? numJobs : GPU_BLOCK_THREADS;
 }
 
-static void decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, float confidence_threshold, float nms_threshold, float* invert_affine_matrix, float* parray, int MAX_IMAGE_BOXES, cudaStream_t stream){
+static void decode_kernel_invoker(float* predict, int num_bboxes, int num_classes, float confidence_threshold, float nms_threshold, float* invert_affine_matrix, float* parray, int MAX_IMAGE_BOXES, Type type, cudaStream_t stream){
     
     auto grid = grid_dims(num_bboxes);
     auto block = block_dims(num_bboxes);
 
-    /* 如果核函数有波浪线，没关系，他是正常的，你只是看不顺眼罢了 */
-    checkKernel(decode_kernel<<<grid, block, 0, stream>>>(predict, num_bboxes, num_classes, confidence_threshold, invert_affine_matrix, parray, MAX_IMAGE_BOXES));
+    if(type == Type::V8){
+        checkKernel(decode_kernel_v8<<<grid, block, 0, stream>>>(predict, num_bboxes, num_classes, confidence_threshold, invert_affine_matrix, parray, MAX_IMAGE_BOXES));
+    }else{
+        checkKernel(decode_kernel_common<<<grid, block, 0, stream>>>(predict, num_bboxes, num_classes, confidence_threshold, invert_affine_matrix, parray, MAX_IMAGE_BOXES));
+    }
 
     grid = grid_dims(MAX_IMAGE_BOXES);
     block = block_dims(MAX_IMAGE_BOXES);
@@ -403,26 +449,32 @@ public:
         trt_ = trt::load(engine_file);
         if(trt_ == nullptr) return false;
 
+        trt_->print();
+
         this->type_ = type;
         this->confidence_threshold_ = confidence_threshold;
         this->nms_threshold_ = nms_threshold;
 
+        auto input_dim       = trt_->static_dims(0);
+        network_output_dims_ = trt_->static_dims(1);
+        input_width_         = input_dim[3];
+        input_height_        = input_dim[2];
+
         if(type == Type::V5 || type == Type::V3 || type == Type::V7){
             normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
+            num_classes_   = network_output_dims_[2] - 5;
+        }else if(type == Type::V8){
+            normalize_ = Norm::alpha_beta(1 / 255.0f, 0.0f, ChannelType::SwapRB);
+            num_classes_   = network_output_dims_[2] - 4;
         }else if(type == Type::X){
             //float mean[] = {0.485, 0.456, 0.406};
             //float std[]  = {0.229, 0.224, 0.225};
-            //normalize_ = Norm::mean_std(mean, std, 1/255.0f, ChannelType::Invert);
+            //normalize_ = Norm::mean_std(mean, std, 1/255.0f, ChannelType::SwapRB);
             normalize_ = Norm::None();
+            num_classes_   = network_output_dims_[2] - 5;
         }else{
             INFO("Unsupport type %d", type);
         }
-
-        auto input_dim = trt_->static_dims(0);
-        network_output_dims_ = trt_->static_dims(1);
-        num_classes_   = network_output_dims_[2] - 5;
-        input_width_   = input_dim[3];
-        input_height_  = input_dim[2];
         return true;
     }
 
@@ -455,11 +507,10 @@ public:
         
         for(int ib = 0; ib < batch_size; ++ib){
             float* boxarray_device = output_boxarray_.gpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
-            float* boxarray_host   = output_boxarray_.cpu() + ib * (32 + MAX_IMAGE_BOXES * NUM_BOX_ELEMENT);
             float* affine_matrix_device = (float*)preprocess_buffers_[ib]->gpu();
             float* network_output_device = network_output + ib * (network_output_dims_[1] * network_output_dims_[2]);
             checkRuntime(cudaMemsetAsync(boxarray_device, 0, sizeof(int), stream_));
-            decode_kernel_invoker(network_output_device, network_output_dims_[1], num_classes_, confidence_threshold_, nms_threshold_, affine_matrix_device, boxarray_device, MAX_IMAGE_BOXES, stream_);
+            decode_kernel_invoker(network_output_device, network_output_dims_[1], num_classes_, confidence_threshold_, nms_threshold_, affine_matrix_device, boxarray_device, MAX_IMAGE_BOXES, type_, stream_);
         }
         checkRuntime(cudaMemcpyAsync(output_boxarray_.cpu(), output_boxarray_.gpu(), output_boxarray_.gpu_bytes(), cudaMemcpyDeviceToHost, stream_));
         checkRuntime(cudaStreamSynchronize(stream_));
