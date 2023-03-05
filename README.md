@@ -1,36 +1,48 @@
-# 全新的tensorrt封装，轻易继承各类任务
-- 轻易实现各类任务的生产者消费者模型，并进行高性能推理
-- 没有复杂的封装，彻底解开耦合!
+# New tensorrt package, easy to integrate many tasks
+- Easily implement producer-consumer models for various tasks and perform high-performance inference
+- No complex packaging, no coupling!
 
-# 关于Yolo-Demo
-- 目前支持Yolo系列3/4/5/x/7/8
-- 支持了YoloV8-Segment
+# For the Yolo-Demo
+- Currently supports Yolo series 3/4/5/x/7/8
+- YoloV8-Segment is supported
+- 🚀 Pre-processing about 1ms
+- 🚀 Post-processing about 0.5ms
 ![](bus.jpg)
 
-# 说明
-- cpm.hpp 生产者消费者模型
-    - 对于直接推理的任务，通过cpm.hpp可以变为自动多batch的生产者消费者模型
-- infer.hpp 对tensorRT的重新封装。接口简单
-- yolo.hpp 对于yolo任务的封装。基于 infer.hpp
+# Description
+- cpm.hpp Producer-consumer model
+    - For direct inference tasks, cpm.hpp can be turned into an automatic multi-batch producer-consumer model
+- infer.hpp A repackaging of tensorRT. Simple interface
+- yolo.hpp Wrapper for yolo tasks. Based on infer.hpp
 
-# trt的推理流程
-### step1 编译模型，例如
+### Inference flow of trt
+### step1 Compile the model, e.g.
 `trtexec --onnx=yolov5s.onnx --saveEngine=yolov5s.engine`
 
-### step2 使用infer推理
+### step2: Use infer inference
 ```
 model = trt::load("yolov5s.engine");
 ... preprocess ...
 
 // Configure the dynamic batch size.
 auto dims = model->static_dims();
-dims[0]   = batch;
+dims[0] = batch;
 model->set_run_dims(dims);
 model->forward({input_device, output_device}, stream);
 
 ... postprocess ...
 ```
-# CPM的使用(将推理封装为生产者消费者)
+
+### step2: Use yolo inference
+```
+cv::Mat image = cv::imread("image.jpg");
+auto model = yolo::load("yolov5s.engine");
+auto objs = model->forward(yolo::Image(image.data, image.cols, image.rows));
+// use objs to draw to image. 
+```
+
+
+# Use of CPM (wrapping the inference as producer-consumer)
 ```
 cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cpmi.start([]{
@@ -43,3 +55,5 @@ for(auto& fut : result_futures){
     ... process ...
 }
 ```
+
+Translated with www.DeepL.com/Translator (free version)
