@@ -55,5 +55,3 @@ for(auto& fut : result_futures){
     ... process ...
 }
 ```
-
-Translated with www.DeepL.com/Translator (free version)
