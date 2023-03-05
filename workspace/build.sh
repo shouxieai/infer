@@ -11,3 +11,6 @@ trtexec --onnx=workspace/yolov8n.transd.onnx \
     --maxShapes=images:16x3x640x640 \
     --optShapes=images:1x3x640x640 \
     --saveEngine=workspace/yolov8n.transd.engine
+
+trtexec --onnx=workspace/yolov8n-seg.b1.transd.onnx \
+    --saveEngine=workspace/yolov8n-seg.b1.transd.engine

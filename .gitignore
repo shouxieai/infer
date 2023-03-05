@@ -7,7 +7,6 @@
 *.o
 *.obj
 
-*.onnx
 workspace/pro
 *.engine
 .kiwi
