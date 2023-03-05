@@ -66,10 +66,10 @@ public:
   Memory(const Memory &other) = delete;
   Memory &operator=(const Memory &other) = delete;
   virtual _DT *gpu(size_t size) override {
-    BaseMemory::gpu(size * sizeof(_DT));
+    return BaseMemory::gpu(size * sizeof(_DT));
   }
   virtual _DT *cpu(size_t size) override {
-    BaseMemory::cpu(size * sizeof(_DT));
+    return BaseMemory::cpu(size * sizeof(_DT));
   }
 
   inline size_t cpu_size() const { return cpu_bytes_ / sizeof(_DT); }
