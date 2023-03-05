@@ -20,7 +20,7 @@
 `trtexec --onnx=yolov5s.onnx --saveEngine=yolov5s.engine`
 
 ### step2: Use infer inference
-```
+```c++
 model = trt::load("yolov5s.engine");
 ... preprocess ...
 
@@ -34,7 +34,7 @@ model->forward({input_device, output_device}, stream);
 ```
 
 ### step2: Use yolo inference
-```
+```c++
 cv::Mat image = cv::imread("image.jpg");
 auto model = yolo::load("yolov5s.engine");
 auto objs = model->forward(yolo::Image(image.data, image.cols, image.rows));
@@ -43,7 +43,7 @@ auto objs = model->forward(yolo::Image(image.data, image.cols, image.rows));
 
 
 # Use of CPM (wrapping the inference as producer-consumer)
-```
+```c++
 cpm::Instance<yolo::BoxArray, yolo::Image, yolo::Infer> cpmi;
 cpmi.start([]{
     return yolo::load("yolov5s.engine", yolo::Type::V5);
