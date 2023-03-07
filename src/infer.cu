@@ -1,57 +1,57 @@
 
-#include "infer.hpp"
 #include <NvInfer.h>
 #include <cuda_runtime.h>
+#include <stdarg.h>
+
 #include <fstream>
 #include <numeric>
 #include <sstream>
-#include <stdarg.h>
 #include <unordered_map>
+
+#include "infer.hpp"
 
 namespace trt {
 
 using namespace std;
 using namespace nvinfer1;
 
-#define checkRuntime(call)                                                     \
-  do {                                                                         \
-    auto ___call__ret_code__ = (call);                                         \
-    if (___call__ret_code__ != cudaSuccess) {                                  \
-      INFO("CUDA Runtime error💥 %s # %s, code = %s [ %d ]", #call,             \
-           cudaGetErrorString(___call__ret_code__),                            \
-           cudaGetErrorName(___call__ret_code__), ___call__ret_code__);        \
-      abort();                                                                 \
-    }                                                                          \
+#define checkRuntime(call)                                                                 \
+  do {                                                                                     \
+    auto ___call__ret_code__ = (call);                                                     \
+    if (___call__ret_code__ != cudaSuccess) {                                              \
+      INFO("CUDA Runtime error💥 %s # %s, code = %s [ %d ]", #call,                         \
+           cudaGetErrorString(___call__ret_code__), cudaGetErrorName(___call__ret_code__), \
+           ___call__ret_code__);                                                           \
+      abort();                                                                             \
+    }                                                                                      \
   } while (0)
 
-#define checkKernel(...)                                                       \
-  do {                                                                         \
-    { (__VA_ARGS__); }                                                         \
-    checkRuntime(cudaPeekAtLastError());                                       \
+#define checkKernel(...)                 \
+  do {                                   \
+    { (__VA_ARGS__); }                   \
+    checkRuntime(cudaPeekAtLastError()); \
   } while (0)
 
-#define Assert(op)                                                             \
-  do {                                                                         \
-    bool cond = !(!(op));                                                      \
-    if (!cond) {                                                               \
-      INFO("Assert failed, " #op);                                             \
-      abort();                                                                 \
-    }                                                                          \
+#define Assert(op)                 \
+  do {                             \
+    bool cond = !(!(op));          \
+    if (!cond) {                   \
+      INFO("Assert failed, " #op); \
+      abort();                     \
+    }                              \
   } while (0)
 
-#define Assertf(op, ...)                                                       \
-  do {                                                                         \
-    bool cond = !(!(op));                                                      \
-    if (!cond) {                                                               \
-      INFO("Assert failed, " #op " : " __VA_ARGS__);                           \
-      abort();                                                                 \
-    }                                                                          \
+#define Assertf(op, ...)                             \
+  do {                                               \
+    bool cond = !(!(op));                            \
+    if (!cond) {                                     \
+      INFO("Assert failed, " #op " : " __VA_ARGS__); \
+      abort();                                       \
+    }                                                \
   } while (0)
 
 static string file_name(const string &path, bool include_suffix) {
-
-  if (path.empty())
-    return "";
+  if (path.empty()) return "";
 
   int p = path.rfind('/');
   int e = path.rfind('\\');
@@ -59,20 +59,16 @@ static string file_name(const string &path, bool include_suffix) {
   p += 1;
 
   // include suffix
-  if (include_suffix)
-    return path.substr(p);
+  if (include_suffix) return path.substr(p);
 
   int u = path.rfind('.');
-  if (u == -1)
-    return path.substr(p);
+  if (u == -1) return path.substr(p);
 
-  if (u <= p)
-    u = path.size();
+  if (u <= p) u = path.size();
   return path.substr(p, u - p);
 }
 
 void __log_func(const char *file, int line, const char *fmt, ...) {
-
   va_list vl;
   va_start(vl, fmt);
   char buffer[2048];
@@ -113,8 +109,7 @@ float Timer::stop(const char *prefix, bool print) {
   checkRuntime(cudaEventSynchronize((cudaEvent_t)stop_));
 
   float latency = 0;
-  checkRuntime(
-      cudaEventElapsedTime(&latency, (cudaEvent_t)start_, (cudaEvent_t)stop_));
+  checkRuntime(cudaEventElapsedTime(&latency, (cudaEvent_t)start_, (cudaEvent_t)stop_));
 
   if (print) {
     printf("[%s]: %.5f ms\n", prefix, latency);
@@ -122,13 +117,11 @@ float Timer::stop(const char *prefix, bool print) {
   return latency;
 }
 
-BaseMemory::BaseMemory(void *cpu, size_t cpu_bytes, void *gpu,
-                       size_t gpu_bytes) {
+BaseMemory::BaseMemory(void *cpu, size_t cpu_bytes, void *gpu, size_t gpu_bytes) {
   reference(cpu, cpu_bytes, gpu, gpu_bytes);
 }
 
-void BaseMemory::reference(void *cpu, size_t cpu_bytes, void *gpu,
-                           size_t gpu_bytes) {
+void BaseMemory::reference(void *cpu, size_t cpu_bytes, void *gpu, size_t gpu_bytes) {
   release();
 
   if (cpu == nullptr || cpu_bytes == 0) {
@@ -154,8 +147,7 @@ void BaseMemory::reference(void *cpu, size_t cpu_bytes, void *gpu,
 
 BaseMemory::~BaseMemory() { release(); }
 
-void *BaseMemory::gpu(size_t bytes) {
-
+void *BaseMemory::gpu_realloc(size_t bytes) {
   if (gpu_capacity_ < bytes) {
     release_gpu();
 
@@ -167,8 +159,7 @@ void *BaseMemory::gpu(size_t bytes) {
   return gpu_;
 }
 
-void *BaseMemory::cpu(size_t bytes) {
-
+void *BaseMemory::cpu_realloc(size_t bytes) {
   if (cpu_capacity_ < bytes) {
     release_cpu();
 
@@ -209,9 +200,8 @@ void BaseMemory::release() {
 }
 
 class __native_nvinfer_logger : public ILogger {
-public:
+ public:
   virtual void log(Severity severity, const char *msg) noexcept override {
-
     if (severity == Severity::kINTERNAL_ERROR) {
       INFO("NVInfer INTERNAL_ERROR: %s", msg);
       abort();
@@ -231,16 +221,14 @@ public:
 };
 static __native_nvinfer_logger gLogger;
 
-template <typename _T> static void destroy_nvidia_pointer(_T *ptr) {
-  if (ptr)
-    ptr->destroy();
+template <typename _T>
+static void destroy_nvidia_pointer(_T *ptr) {
+  if (ptr) ptr->destroy();
 }
 
 static std::vector<uint8_t> load_file(const string &file) {
-
   ifstream in(file, ios::in | ios::binary);
-  if (!in.is_open())
-    return {};
+  if (!in.is_open()) return {};
 
   in.seekg(0, ios::end);
   size_t length = in.tellg();
@@ -257,52 +245,47 @@ static std::vector<uint8_t> load_file(const string &file) {
 }
 
 class __native_engine_context {
-public:
+ public:
   virtual ~__native_engine_context() { destroy(); }
 
   bool construct(const void *pdata, size_t size) {
     destroy();
 
-    if (pdata == nullptr || size == 0)
-      return false;
+    if (pdata == nullptr || size == 0) return false;
 
-    runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger),
-                                    destroy_nvidia_pointer<IRuntime>);
-    if (runtime_ == nullptr)
-      return false;
+    runtime_ = shared_ptr<IRuntime>(createInferRuntime(gLogger), destroy_nvidia_pointer<IRuntime>);
+    if (runtime_ == nullptr) return false;
 
-    engine_ = shared_ptr<ICudaEngine>(
-        runtime_->deserializeCudaEngine(pdata, size, nullptr),
-        destroy_nvidia_pointer<ICudaEngine>);
-    if (engine_ == nullptr)
-      return false;
+    engine_ = shared_ptr<ICudaEngine>(runtime_->deserializeCudaEngine(pdata, size, nullptr),
+                                      destroy_nvidia_pointer<ICudaEngine>);
+    if (engine_ == nullptr) return false;
 
-    context_ = shared_ptr<IExecutionContext>(
-        engine_->createExecutionContext(),
-        destroy_nvidia_pointer<IExecutionContext>);
+    context_ = shared_ptr<IExecutionContext>(engine_->createExecutionContext(),
+                                             destroy_nvidia_pointer<IExecutionContext>);
     return context_ != nullptr;
   }
 
-private:
+ private:
   void destroy() {
     context_.reset();
     engine_.reset();
     runtime_.reset();
   }
 
-public:
+ public:
   shared_ptr<IExecutionContext> context_;
   shared_ptr<ICudaEngine> engine_;
   shared_ptr<IRuntime> runtime_ = nullptr;
 };
 
 class InferImpl : public Infer {
-public:
+ public:
   shared_ptr<__native_engine_context> context_;
   unordered_map<string, int> binding_name_to_index_;
 
-  bool construct(const void *data, size_t size) {
+  virtual ~InferImpl() = default;
 
+  bool construct(const void *data, size_t size) {
     context_ = make_shared<__native_engine_context>();
     if (!context_->construct(data, size)) {
       return false;
@@ -315,15 +298,13 @@ public:
   bool load(const string &file) {
     auto data = load_file(file);
     if (data.empty()) {
-      INFO("An empty file has been loaded. Please confirm your file path: %s",
-           file.c_str());
+      INFO("An empty file has been loaded. Please confirm your file path: %s", file.c_str());
       return false;
     }
     return this->construct(data.data(), data.size());
   }
 
   void setup() {
-
     auto engine = this->context_->engine_;
     int nbBindings = engine->getNbBindings();
 
@@ -336,16 +317,15 @@ public:
 
   virtual int index(const std::string &name) override {
     auto iter = binding_name_to_index_.find(name);
-    Assertf(iter != binding_name_to_index_.end(),
-            "Can not found the binding name: %s", name.c_str());
+    Assertf(iter != binding_name_to_index_.end(), "Can not found the binding name: %s",
+            name.c_str());
     return iter->second;
   }
 
   virtual bool forward(const std::vector<void *> &bindings, void *stream,
                        void *input_consum_event) override {
-    return this->context_->context_->enqueueV2(
-        bindings.data(), (cudaStream_t)stream,
-        (cudaEvent_t *)input_consum_event);
+    return this->context_->context_->enqueueV2(bindings.data(), (cudaStream_t)stream,
+                                               (cudaEvent_t *)input_consum_event);
   }
 
   virtual std::vector<int> run_dims(const std::string &name) override {
@@ -366,63 +346,51 @@ public:
     return std::vector<int>(dim.d, dim.d + dim.nbDims);
   }
 
-  virtual int num_bindings() override {
-    return this->context_->engine_->getNbBindings();
-  }
+  virtual int num_bindings() override { return this->context_->engine_->getNbBindings(); }
 
   virtual bool is_input(int ibinding) override {
     return this->context_->engine_->bindingIsInput(ibinding);
   }
 
-  virtual bool set_run_dims(const std::string &name,
-                            const std::vector<int> &dims) override {
+  virtual bool set_run_dims(const std::string &name, const std::vector<int> &dims) override {
     return this->set_run_dims(index(name), dims);
   }
 
-  virtual bool set_run_dims(int ibinding,
-                            const std::vector<int> &dims) override {
+  virtual bool set_run_dims(int ibinding, const std::vector<int> &dims) override {
     Dims d;
     memcpy(d.d, dims.data(), sizeof(int) * dims.size());
     d.nbDims = dims.size();
     return this->context_->context_->setBindingDimensions(ibinding, d);
   }
 
-  virtual int numel(const std::string &name) override {
-    return numel(index(name));
-  }
+  virtual int numel(const std::string &name) override { return numel(index(name)); }
 
   virtual int numel(int ibinding) override {
     auto dim = this->context_->context_->getBindingDimensions(ibinding);
-    return std::accumulate(dim.d, dim.d + dim.nbDims, 1,
-                           std::multiplies<int>());
+    return std::accumulate(dim.d, dim.d + dim.nbDims, 1, std::multiplies<int>());
   }
 
-  virtual DType dtype(const std::string &name) override {
-    return dtype(index(name));
-  }
+  virtual DType dtype(const std::string &name) override { return dtype(index(name)); }
 
   virtual DType dtype(int ibinding) override {
-    return (DType) this->context_->engine_->getBindingDataType(ibinding);
+    return (DType)this->context_->engine_->getBindingDataType(ibinding);
   }
 
   virtual bool has_dynamic_dim() override {
-
     // check if any input or output bindings have dynamic shapes
     // code from ChatGPT
     int numBindings = this->context_->engine_->getNbBindings();
     for (int i = 0; i < numBindings; ++i) {
       nvinfer1::Dims dims = this->context_->engine_->getBindingDimensions(i);
       for (int j = 0; j < dims.nbDims; ++j) {
-        if (dims.d[j] == -1)
-          return true;
+        if (dims.d[j] == -1) return true;
       }
     }
     return false;
   }
 
   virtual void print() override {
-    INFO("Infer %p [%s]", this,
-         has_dynamic_dim() ? "DynamicShape" : "StaticShape");
+    INFO("Infer %p [%s]", this, has_dynamic_dim() ? "DynamicShape" : "StaticShape");
 
     int num_input = 0;
     int num_output = 0;
@@ -467,10 +435,10 @@ std::string format_shape(const std::vector<int> &shape) {
   stringstream output;
   char buf[64];
   const char *fmts[] = {"%d", "x%d"};
-  for (int i = 0; i < shape.size(); ++i) {
+  for (int i = 0; i < (int)shape.size(); ++i) {
     snprintf(buf, sizeof(buf), fmts[i != 0], shape[i]);
     output << buf;
   }
   return output.str();
 }
-};
+};  // namespace trt

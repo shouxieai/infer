@@ -12,8 +12,9 @@
 
 namespace cpm {
 
-template <typename Result, typename Input, typename Model> class Instance {
-protected:
+template <typename Result, typename Input, typename Model>
+class Instance {
+ protected:
   struct Item {
     Input input;
     std::shared_ptr<std::promise<Result>> pro;
@@ -27,7 +28,7 @@ protected:
   volatile int max_items_processed_ = 0;
   void *stream_ = nullptr;
 
-public:
+ public:
   virtual ~Instance() { stop(); }
 
   void stop() {
@@ -37,8 +38,7 @@ public:
       std::unique_lock<std::mutex> l(queue_lock_);
       while (!input_queue_.empty()) {
         auto &item = input_queue_.front();
-        if (item.pro)
-          item.pro->set_value(Result());
+        if (item.pro) item.pro->set_value(Result());
         input_queue_.pop();
       }
     };
@@ -61,13 +61,11 @@ public:
     return item.pro->get_future();
   }
 
-  virtual std::vector<std::shared_future<Result>>
-  commits(const std::vector<Input> &inputs) {
-
+  virtual std::vector<std::shared_future<Result>> commits(const std::vector<Input> &inputs) {
     std::vector<std::shared_future<Result>> output;
     {
       std::unique_lock<std::mutex> __lock_(queue_lock_);
-      for (int i = 0; i < inputs.size(); ++i) {
+      for (int i = 0; i < (int)inputs.size(); ++i) {
         Item item;
         item.input = inputs[i];
         item.pro.reset(new std::promise<Result>());
@@ -80,24 +78,20 @@ public:
   }
 
   template <typename LoadMethod>
-  bool start(const LoadMethod &loadmethod, int max_items_processed = 1,
-             void *stream = nullptr) {
-
+  bool start(const LoadMethod &loadmethod, int max_items_processed = 1, void *stream = nullptr) {
     stop();
 
     this->stream_ = stream;
     this->max_items_processed_ = max_items_processed;
     std::promise<bool> status;
-    worker_ =
-        std::make_shared<std::thread>(&Instance::worker<LoadMethod>, this,
-                                      std::ref(loadmethod), std::ref(status));
+    worker_ = std::make_shared<std::thread>(&Instance::worker<LoadMethod>, this,
+                                            std::ref(loadmethod), std::ref(status));
     return status.get_future().get();
   }
 
-private:
+ private:
   template <typename LoadMethod>
   void worker(const LoadMethod &loadmethod, std::promise<bool> &status) {
-
     std::shared_ptr<Model> model = loadmethod();
     if (model == nullptr) {
       status.set_value(false);
@@ -110,14 +104,13 @@ private:
     std::vector<Item> fetch_items;
     std::vector<Input> inputs;
     while (get_items_and_wait(fetch_items, max_items_processed_)) {
-
       inputs.resize(fetch_items.size());
       std::transform(fetch_items.begin(), fetch_items.end(), inputs.begin(),
                      [](Item &item) { return item.input; });
 
       auto ret = model->forwards(inputs, stream_);
-      for (int i = 0; i < fetch_items.size(); ++i) {
-        if (i < ret.size()) {
+      for (int i = 0; i < (int)fetch_items.size(); ++i) {
+        if (i < (int)ret.size()) {
           fetch_items[i].pro->set_value(ret[i]);
         } else {
           fetch_items[i].pro->set_value(Result());
@@ -130,14 +123,11 @@ private:
     run_ = false;
   }
 
-  virtual bool get_items_and_wait(std::vector<Item> &fetch_items,
-                                  int max_size) {
-
+  virtual bool get_items_and_wait(std::vector<Item> &fetch_items, int max_size) {
     std::unique_lock<std::mutex> l(queue_lock_);
     cond_.wait(l, [&]() { return !run_ || !input_queue_.empty(); });
 
-    if (!run_)
-      return false;
+    if (!run_) return false;
 
     fetch_items.clear();
     for (int i = 0; i < max_size && !input_queue_.empty(); ++i) {
@@ -148,18 +138,16 @@ private:
   }
 
   virtual bool get_item_and_wait(Item &fetch_item) {
-
     std::unique_lock<std::mutex> l(queue_lock_);
     cond_.wait(l, [&]() { return !run_ || !input_queue_.empty(); });
 
-    if (!run_)
-      return false;
+    if (!run_) return false;
 
     fetch_item = std::move(input_queue_.front());
     input_queue_.pop();
     return true;
   }
 };
-};
+};  // namespace cpm
 
-#endif // __CPM_HPP__
+#endif  // __CPM_HPP__
