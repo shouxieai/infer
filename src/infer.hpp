@@ -65,18 +65,18 @@ public:
   Memory() = default;
   Memory(const Memory &other) = delete;
   Memory &operator=(const Memory &other) = delete;
-  virtual _DT *gpu(size_t size) override {
+  virtual _DT *gpu(size_t size) {
     return (_DT*)BaseMemory::gpu(size * sizeof(_DT));
   }
-  virtual _DT *cpu(size_t size) override {
+  virtual _DT *cpu(size_t size) {
     return (_DT*)BaseMemory::cpu(size * sizeof(_DT));
   }
 
   inline size_t cpu_size() const { return cpu_bytes_ / sizeof(_DT); }
   inline size_t gpu_size() const { return gpu_bytes_ / sizeof(_DT); }
 
-  virtual inline _DT *gpu() const override { return (_DT *)gpu_; }
-  virtual inline _DT *cpu() const override { return (_DT *)cpu_; }
+  virtual inline _DT *gpu() const { return (_DT *)gpu_; }
+  virtual inline _DT *cpu() const { return (_DT *)cpu_; }
 };
 
 class Infer {
