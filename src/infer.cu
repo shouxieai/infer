@@ -324,7 +324,7 @@ class InferImpl : public Infer {
 
   virtual bool forward(const std::vector<void *> &bindings, void *stream,
                        void *input_consum_event) override {
-    return this->context_->context_->enqueueV2(bindings.data(), (cudaStream_t)stream,
+    return this->context_->context_->enqueueV2((void**)bindings.data(), (cudaStream_t)stream,
                                                (cudaEvent_t *)input_consum_event);
   }
 
