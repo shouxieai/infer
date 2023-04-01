@@ -4,7 +4,7 @@
 
 ### Inference flow of trt
 ### step1 Compile the model, e.g.
-`trtexec --onnx=yolov5s.onnx --saveEngine=yolov5s.engine`
+`trtexec --onnx=workspace/yolov5s.onnx --saveEngine=workspace/yolov5s.engine`
 
 ### step2: Use infer inference
 ```bash
