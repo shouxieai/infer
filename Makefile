@@ -1,16 +1,16 @@
 cc        := g++
-nvcc      = /root/.kiwi/lib/cuda10.2/bin/nvcc
+nvcc      = ${@CUDA_BIN}/nvcc
 
 include_paths := src        \
-			/root/.kiwi/lib/opencv4.2/include \
-			/root/.kiwi/lib/tensorRT8016cuda102cudnn8/include \
-			/root/.kiwi/lib/cuda10.2/include \
- 			/root/.kiwi/lib/cudnn822cuda102/include
+			${@OPENCV_INCLUDE} \
+			${@TENSORRT_INCLUDE} \
+			${@CUDA_INCLUDE} \
+ 			${@CUDNN_INCLUDE}
 
-library_paths := /root/.kiwi/lib/opencv4.2/lib \
-			/root/.kiwi/lib/tensorRT8016cuda102cudnn8/lib \
-			/root/.kiwi/lib/cuda10.2/lib64 \
- 			/root/.kiwi/lib/cudnn822cuda102/lib
+library_paths := ${@OPENCV_LIB} \
+			${@TENSORRT_LIB} \
+			${@CUDA_LIB} \
+ 			${@CUDNN_LIB}
 
 link_librarys := opencv_core opencv_imgproc opencv_videoio opencv_imgcodecs \
 			nvinfer nvinfer_plugin nvonnxparser \
@@ -23,4 +23,4 @@ cpp_compile_flags := -std=c++11 -fPIC -g -fopenmp $(cppstrict) -O0
 cu_compile_flags  := -std=c++11 $(custrict) -O0 -Xcompiler "$(cpp_compile_flags)"
 link_flags        := -pthread -fopenmp -Wl,-rpath='$$ORIGIN'
 
-include /root/.kiwi/lib/cumk/inc
+include ${@CUMK}
